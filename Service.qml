@@ -21,14 +21,6 @@ Item {
     syncProc.running = true
   }
 
-  Component.onCompleted: setupProc.running = true
-
-  Process {
-    id: setupProc
-    command: [root.bin, "setup"]
-    onExited: root.sync()
-  }
-
   Process {
     id: syncProc
     command: [root.bin, "sync"]

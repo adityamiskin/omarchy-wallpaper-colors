@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: wallpaper-colors [sync | sources | pick <index> | setup]
+# Usage: wallpaper-colors [sync | sources | pick <index>]
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
@@ -130,19 +130,10 @@ pick() {
   sync
 }
 
-setup() {
-  install -Dm644 "$here/../themed/gtk4.css.tpl" ~/.config/omarchy/themed/gtk4.css.tpl
-  # Only claim gtk.css when nothing else does.
-  if [[ ! -e ~/.config/gtk-4.0/gtk.css && ! -L ~/.config/gtk-4.0/gtk.css ]]; then
-    mkdir -p ~/.config/gtk-4.0
-    ln -s "$current/theme/gtk4.css" ~/.config/gtk-4.0/gtk.css
-  fi
-}
 
 case ${1:-sync} in
   sync) sync ;;
   sources) sources ;;
   pick) pick "${2:?pick needs an index}" ;;
-  setup) setup ;;
-  *) echo "Usage: wallpaper-colors [sync | sources | pick <index> | setup]" >&2; exit 1 ;;
+  *) echo "Usage: wallpaper-colors [sync | sources | pick <index>]" >&2; exit 1 ;;
 esac

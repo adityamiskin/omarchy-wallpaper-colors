@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "Aditya Miskin",
   "license": "MIT",
-  "description": "Your wallpaper is your theme. Every wallpaper change recolors the desktop from the image with matugen: bar, terminals, browser, GTK apps, and light or dark mode by how bright the image is. A bar popup lets you pick the accent per wallpaper.",
+  "description": "Your wallpaper is your theme. Every wallpaper change recolors the desktop from the image with matugen: bar, terminals, browser, and light or dark mode by how bright the image is. A bar popup lets you pick the accent per wallpaper.",
   "kinds": [
     "service",
     "bar-widget"

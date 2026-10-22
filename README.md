@@ -1,13 +1,12 @@
 # Wallpaper Colors
 
-Your wallpaper is your theme. Change the wallpaper and the whole Omarchy desktop recolors from it: bar, menus, borders, terminals, browser, editors, and GTK4 apps.
+Your wallpaper is your theme. Change the wallpaper and the whole Omarchy desktop recolors from it: bar, menus, borders, terminals, browser, and editors.
 
 - **Light or dark by image.** Bright wallpapers (mean brightness above 0.6) get a light theme, everything else a dark one.
 - **Calm backgrounds.** Backgrounds keep the wallpaper's hue at half strength, so they read as dark (or light) first and tinted second.
 - **Readable terminals.** ANSI colors start at their usual hues, lean up to 15° toward the wallpaper, and are then pushed to at least 4.5:1 contrast against the background. Text gets 7:1.
 - **Pick the accent.** The palette icon in the bar lists the accents the wallpaper's colors produce. Picking one rebuilds the palette around it and is remembered for that wallpaper.
 - **One picker.** Every wallpaper from every theme shows up in the background picker. Drop your own into `~/.config/omarchy/backgrounds/wallpaper/` and they appear immediately.
-- **GTK4 apps follow too.** A `gtk4.css` template maps the palette onto libadwaita's colors. Open apps pick it up on their next start.
 
 ## Install
 
@@ -19,6 +18,16 @@ omarchy plugin add https://github.com/adityamiskin/omarchy-wallpaper-colors.git 
 ```
 
 Then add the **Wallpaper Colors** widget to the bar if you want the accent picker.
+
+## What it changes
+
+Enabling the plugin switches you to a generated `wallpaper` theme and keeps it in sync with the wallpaper. It writes only these:
+
+| Path | What |
+| --- | --- |
+| `~/.config/omarchy/themes/wallpaper/` | The generated theme |
+| `~/.config/omarchy/backgrounds/wallpaper/` | Links to every installed wallpaper, for the picker |
+| `~/.local/state/omarchy/wallpaper-colors/` | Accent picks and the last applied wallpaper |
 
 ## How it works
 
@@ -40,7 +49,6 @@ State lives in `~/.local/state/omarchy/wallpaper-colors/`.
 omarchy plugin remove adityamiskin.wallpaper-colors
 omarchy theme set tokyo-night
 rm -rf ~/.config/omarchy/themes/wallpaper ~/.config/omarchy/backgrounds/wallpaper ~/.local/state/omarchy/wallpaper-colors
-rm ~/.config/omarchy/themed/gtk4.css.tpl ~/.config/gtk-4.0/gtk.css
 ```
 
 ## Credits
