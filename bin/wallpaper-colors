@@ -1,0 +1,148 @@
+#!/bin/bash
+# Usage: wallpaper-colors [sync | sources | pick <index> | setup]
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "$0")")
+current=~/.local/state/omarchy/current
+theme=~/.config/omarchy/themes/wallpaper
+picker=~/.config/omarchy/backgrounds/wallpaper
+state=~/.local/state/omarchy/wallpaper-colors
+picks=$state/picks.json
+tmp=""
+mkdir -p "$state"
+trap '[[ -n $tmp ]] && rm -f "$tmp"' EXIT
+
+require_matugen() {
+  command -v matugen >/dev/null && return
+  local marker=${XDG_RUNTIME_DIR:-/tmp}/wallpaper-colors-matugen-missing
+  if [[ ! -e $marker ]]; then
+    touch "$marker"
+    omarchy-notification-send -u critical "Wallpaper Colors needs matugen" "Install it with: sudo pacman -S matugen"
+  fi
+  echo "matugen is not installed" >&2
+  exit 1
+}
+
+current_image() {
+  # `theme set` swaps the theme dir before it moves the background link; its lock covers both.
+  exec 8>"${XDG_RUNTIME_DIR:-/tmp}/omarchy-theme-set.lock"
+  flock 8
+  local image name root
+  image=$(readlink -e "$current/background")
+
+  # A regular theme points the background into current/theme, which `theme set` is about to delete.
+  if [[ $image == "$current/theme/"* ]]; then
+    name=$(<"$current/theme.name")
+    for root in ~/.config/omarchy/themes /usr/share/omarchy/themes; do
+      if [[ -f $root/$name/${image#"$current/theme/"} ]]; then
+        image=$root/$name/${image#"$current/theme/"}
+        ln -nsf "$image" "$current/background"
+        break
+      fi
+    done
+  fi
+  exec 8>&-
+  echo "$image"
+}
+
+picked_index() {
+  jq -r --arg image "$1" '.[$image] // 0' "$picks" 2>/dev/null || echo 0
+}
+
+# Bright wallpapers get a light theme. 0.6 sits in the gap between Kanagawa's cream paper (0.63)
+# and the darkest stock wallpapers that still read as dark (0.58).
+mode_for() {
+  if (( $(magick "$1[0]" -resize 64x64! -colorspace Gray -format '%[fx:mean > 0.6]' info:) )); then
+    echo light
+  else
+    echo dark
+  fi
+}
+
+collect_wallpapers() {
+  # Every wallpaper lives in one picker, since the wallpaper now is the theme. The picker reads this
+  # folder live, unlike the theme's own backgrounds, which are only copied in by `theme set`.
+  mkdir -p "$picker"
+  local source dir
+  for source in /usr/share/omarchy/themes/*/backgrounds/* ~/.config/omarchy/themes/*/backgrounds/* ~/.config/omarchy/backgrounds/*/*; do
+    [[ $source == "$picker/"* || ! ${source,,} =~ \.(jpe?g|png|gif|bmp|webp)$ ]] && continue
+    dir=${source%/*}
+    dir=${dir%/backgrounds}
+    ln -nsf "$source" "$picker/${dir##*/}-${source##*/}"
+  done
+  find "$picker" -xtype l -delete
+}
+
+sync() {
+  require_matugen
+  exec 9>"$state/lock"
+  flock 9
+  collect_wallpapers
+
+  local image index signature mode
+  image=$(current_image)
+  index=$(picked_index "$image")
+  signature="$image#$index"
+  [[ $(<"$current/theme.name") == wallpaper && $(cat "$state/last" 2>/dev/null) == "$signature" ]] && return
+
+  mode=$(mode_for "$image")
+
+  mkdir -p "$theme"
+  tmp=$(mktemp "$theme/.colors.toml.XXXXXX")
+
+  matugen image "$image" --dry-run --mode "$mode" --source-color-index "$index" --json hex |
+    jq -r --arg mode "$mode" -f "$here/colors.jq" >"$tmp"
+
+  # Every theme change briefly freezes input while apps retint, so skip one that changes nothing.
+  if [[ $(<"$current/theme.name") == wallpaper ]] && cmp -s "$tmp" "$theme/colors.toml"; then
+    rm -f "$tmp"
+  else
+    mv "$tmp" "$theme/colors.toml"
+    OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set wallpaper >/dev/null
+  fi
+  echo "$signature" >"$state/last"
+}
+
+sources() {
+  require_matugen
+  local image mode count i
+  image=$(current_image)
+  mode=$(mode_for "$image")
+  count=$(matugen image "$image" --show-source-colors --dry-run --json hex 2>/dev/null | grep -cE '^#[0-9a-fA-F]{6}$')
+  # Each candidate is shown as the accent it produces, not its raw (often dull) source color.
+  for (( i = 0; i < count; i++ )); do
+    matugen image "$image" --dry-run --mode "$mode" --source-color-index "$i" --json hex | jq -r --arg mode "$mode" '.colors.primary[$mode].color'
+  done | jq -Rsc --arg image "$image" --argjson active "$(picked_index "$image")" \
+    '{image: $image, active: $active, colors: split("\n") | map(select(length > 0))}'
+}
+
+pick() {
+  local image
+  image=$(current_image)
+  tmp=$(mktemp "$state/.picks.XXXXXX")
+  if [[ $1 == 0 ]]; then
+    jq --arg image "$image" 'del(.[$image])' "$picks" 2>/dev/null >"$tmp" || echo '{}' >"$tmp"
+  else
+    jq --arg image "$image" --argjson index "$1" '.[$image] = $index' "$picks" 2>/dev/null >"$tmp" ||
+      jq -n --arg image "$image" --argjson index "$1" '{($image): $index}' >"$tmp"
+  fi
+  mv "$tmp" "$picks"
+  sync
+}
+
+setup() {
+  install -Dm644 "$here/../themed/gtk4.css.tpl" ~/.config/omarchy/themed/gtk4.css.tpl
+  # Only claim gtk.css when nothing else does.
+  if [[ ! -e ~/.config/gtk-4.0/gtk.css && ! -L ~/.config/gtk-4.0/gtk.css ]]; then
+    mkdir -p ~/.config/gtk-4.0
+    ln -s "$current/theme/gtk4.css" ~/.config/gtk-4.0/gtk.css
+  fi
+}
+
+case ${1:-sync} in
+  sync) sync ;;
+  sources) sources ;;
+  pick) pick "${2:?pick needs an index}" ;;
+  setup) setup ;;
+  *) echo "Usage: wallpaper-colors [sync | sources | pick <index> | setup]" >&2; exit 1 ;;
+esac
