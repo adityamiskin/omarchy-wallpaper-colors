@@ -5,8 +5,8 @@ import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
 
-// Bar button + popup listing the accents the wallpaper's source colors produce. Picking one rebuilds
-// the whole palette around it.
+// Bar button + popup listing the accents the wallpaper's source colors produce. Picking one recolors
+// the current theme around it; Theme default removes the override.
 Panel {
   id: root
   moduleName: "adityamiskin.wallpaper-colors"
@@ -17,6 +17,8 @@ Panel {
   readonly property string fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
 
   property var colors: []
+  property string theme: ""
+  property bool locked: false
   property int active: 0
   property string error: ""
   property bool loading: false
@@ -25,10 +27,10 @@ Panel {
   property bool cursorActive: false
 
   // Matugen's first candidate is the default; picking another is remembered for this wallpaper.
-  readonly property var rows: root.colors.map(function(color, i) {
-    return { index: i, name: i === 0 ? "Default" : "Color " + (i + 1), color: color }
-  })
-  readonly property int activeRow: root.active
+  readonly property var rows: [{ index: -1, name: "Theme default", color: "" }].concat(root.colors.map(function(color, i) {
+    return { index: i, name: i === 0 ? "Wallpaper" : "Color " + (i + 1), color: color }
+  }))
+  readonly property int activeRow: root.active + 1
 
   function refresh() {
     if (sourcesProc.running) return
@@ -41,7 +43,7 @@ Panel {
     if (pickProc.running) return
     root.applying = true
     root.error = ""
-    pickProc.command = [root.bin, "pick", String(index)]
+    pickProc.command = index < 0 ? [root.bin, "reset"] : [root.bin, "pick", String(index)]
     pickProc.running = true
   }
 
@@ -61,6 +63,8 @@ Panel {
         try {
           var result = JSON.parse(String(text || "").trim())
           root.colors = result.colors
+          root.theme = result.theme
+          root.locked = result.locked
           root.active = result.active
           root.cursor = root.activeRow
         } catch (e) {
@@ -129,6 +133,18 @@ Panel {
         }
 
         Text {
+          visible: root.locked
+          width: parent.width
+          wrapMode: Text.Wrap
+          textFormat: Text.PlainText
+          text: root.theme + " is installed from git, so it is left unchanged."
+          color: root.fg
+          opacity: 0.6
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+
+        Text {
           visible: root.loading || root.applying || root.error !== ""
           width: parent.width
           wrapMode: Text.Wrap
@@ -166,6 +182,8 @@ Panel {
               height: width
               radius: width / 2
               color: row.modelData.color || "transparent"
+              border.width: row.modelData.color ? 0 : 1
+              border.color: root.fg
             }
 
             Text {
@@ -185,7 +203,7 @@ Panel {
               anchors.rightMargin: Style.space(10)
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
-              text: row.current ? "✓" : row.modelData.color
+              text: row.current ? "✓" : row.modelData.color || root.theme
               color: root.fg
               opacity: row.current ? 1 : 0.5
               font.family: root.fontFamily

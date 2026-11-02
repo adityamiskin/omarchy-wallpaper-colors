@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "adityamiskin.wallpaper-colors",
   "name": "Wallpaper Colors",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "Aditya Miskin",
   "license": "MIT",
-  "description": "Your wallpaper is your theme. Every wallpaper change recolors the desktop from the image with matugen: bar, terminals, browser, and light or dark mode by how bright the image is. A bar popup lets you pick the accent per wallpaper.",
+  "description": "Recolors your current Omarchy theme from the wallpaper with matugen: bar, terminals, browser, and light or dark by how bright the image is. Your theme stays active; Theme default in the bar popup puts its own colors back.",
   "kinds": [
     "service",
     "bar-widget"
@@ -16,7 +16,7 @@
   },
   "barWidget": {
     "displayName": "Wallpaper Colors",
-    "description": "Pick the accent color from the wallpaper.",
+    "description": "Pick the wallpaper accent, or go back to the theme's own colors.",
     "category": "Appearance",
     "allowMultiple": false,
     "defaultSection": "right"
